@@ -18,3 +18,9 @@ def pronResolution_base(cList, rows):
         if token['pos'] == 'PRON':
             token['char'] = [np.random.choice(cList)]
     return rows.tokens
+
+def pronResolution_sent(cDict, rows):
+    '''
+    cDict is a dictionary of characters and their total sentiment values in the movie
+    '''
+    return rows.tokens
