@@ -74,30 +74,29 @@ def pronEval(dfList, numExamples=50):
     # indexes for lines of dialogue with resolved pronouns
     df = dfList[0]
     charIndex = list(df[df.hasChar == True].index)
+    # sample random line to evaluate resolved pronoun
+    selectLine = np.random.choice(charIndex, min(len(charIndex), numExamples), replace=False)
     
     # for each line
-    for n in range(numExamples):
-            
-        # sample random line to evaluate resolved pronoun
-        selectLine = np.random.choice(charIndex)
-        
-        # for each model df, select line to analyze
+    for lineNum in selectLine:
+    
+    # for each model df, select line to analyze
         for m in range(numModels):
             
             # select model results
             df = dfList[m]
-            charList = [(x['content'], x['char']) for x in df.loc[selectLine]['tokens'] if 'char' in x]
+            charList = [(x['content'], x['char']) for x in df.loc[lineNum]['tokens'] if 'char' in x]
 
             # print line being analyzed
-            print('\n' + '*'*8 + ' line {} '.format(selectLine) + '*'*8)
-            for rowNum in range(max(0, selectLine - 2), min(len(dfList[m]), selectLine + 3)):
-                if rowNum == selectLine:
+            print('\n' + '*'*8 + ' line {} '.format(lineNum) + '*'*8)
+            for rowNum in range(max(0, lineNum - 2), min(len(dfList[m]), lineNum + 3)):
+                if rowNum == lineNum:
                     print('=> {}. {}:\n=> {}\n'.format(rowNum, df.loc[rowNum]['speaker'], df.loc[rowNum]['dialogue']))
                 else:
                     print('{}. {}:\n{}\n'.format(rowNum, df.loc[rowNum]['speaker'], df.loc[rowNum]['dialogue']))
 
             # print resolved pronouns from model
-            print('*'*8 + ' test model {}: line {} '.format(m+1, selectLine) + '*'*8)
+            print('*'*8 + ' test model {}: line {} '.format(m+1, lineNum) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for i, char in enumerate(charList):
                 print('{}. {} => {}'.format(i+1, char[0], char[1]))
