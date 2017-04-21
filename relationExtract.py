@@ -24,9 +24,9 @@ def simpleRE(rows):
                              'ent1':subj, 'ent2':obj, 'class':0, 'line':rows.name})
         
     if relation:
-        return relation, True
+        return relation
     else:
-        return None, False
+        return None
     
 def REEval(dfList, numExamples=50):
     '''
@@ -39,7 +39,7 @@ def REEval(dfList, numExamples=50):
     
     # indexes for lines of dialogue with resolved pronouns
     df = dfList[0]
-    REIndex = list(df[df.hasRelation == True].index)
+    REIndex = list(df[df.relations.notnull()].index)
     
     # sample lines
     selectLine = np.random.choice(REIndex, numExamples, replace=False)
