@@ -52,7 +52,7 @@ def REEval(dfList, numExamples=50):
             df = dfList[m]
 
             # print line being analyzed
-            print('\n' + '*'*8 + ' line {} '.format(selectLine) + '*'*8)
+            print('\n' + '*'*8 + ' line {} '.format(lineNum) + '*'*8)
             for rowNum in range(max(0, lineNum - 2), min(len(dfList[m]), lineNum + 3)):
                 if rowNum == lineNum:
                     print('=> {}. {}:\n=> {}\n'.format(rowNum, df.loc[rowNum]['speaker'], df.loc[rowNum]['dialogue']))
