@@ -20,7 +20,8 @@ def simpleRE(rows):
             #print(tokens[nsubj])
             subj = rows.tokens[nsubj].get('char', rows.tokens[nsubj]['content'])
             obj = rows.tokens[i].get('char', rows.tokens[i]['content'])
-            relation.append({'relation':rows.tokens[verb]['content'], 'ent1':subj, 'ent2':obj, 'class':0, 'line':rows.index})
+            relation.append({'relation':rows.tokens[verb]['content'], 
+                             'ent1':subj, 'ent2':obj, 'class':0, 'line':rows.name})
         
     if relation:
         return relation, True
