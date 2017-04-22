@@ -65,7 +65,7 @@ def pronResolution_nnMod(charList, row):
             
             # if token is "I",
             if pLemma.lower() in ['i', 'me']:
-                token['char'] = row['speaker']
+                token['char'] = [row['speaker']]
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() == 'you':
