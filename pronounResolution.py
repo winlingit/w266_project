@@ -6,7 +6,7 @@ import os
 
 
 ### Model 0: Random character
-def pronResolution_base(cList, row):
+def pronResolution_base(charList, row):
     '''
     cList is a list of characters(str) that appear in the movie
     tokens are from the processed csv files
@@ -15,34 +15,41 @@ def pronResolution_base(cList, row):
     baseline randomly associates pronouns to the list of characters
     {char: [A, B, ...]} (using a list to handle possible issue with plural pronouns
     '''
-    hasChar = False
     
-    # check all tokens for pronouns
-    for token in row.tokens:
-        # print(token)
+    for token in row['tokens']:
         
-        # if token is pronoun, tag with character and set character flag to True
+        # if token is pronoun, add random character name to token
         if token['pos'] == 'PRON':
-            token['char'] = [np.random.choice(cList)]
-            hasChar = True
+            token['char'] = [np.random.choice(charList)]
+
+    return row['tokens']
+
+
+### Model 1: Current and adjacent speakers (2 speaker model)
+def pronResolution_nn(charList, row):
+    '''
+    I => current speaker, you => previous or next speaker
+    '''
+    
+    for token in row['tokens']:
+        
+        # if token is pronoun, add character name to token
+        if token['pos'] == 'PRON':
+            type = token['content']
             
-    return row.tokens, hasChar
+            # if token is "I",
+            if type.lower() == 'i':
+                token['char'] = row['speaker']
+                
+            # else, if token is "you", add previous or next speaker to dialogue
+            elif type.lower() == 'you':
+                token['char'] = np.random.choice([row['speaker_prev'], row['speaker_next']])
+                
+            # else, add random character name to token
+            else:
+                token['char'] = [np.random.choice(charList)]
 
-
-### Model 1: Adjacent speaker
-def pronResolution_nn():
-    pass
-    '''
-    I => current speaker, you => speaker before/after current speaker
-    '''
-    
-    # if token type is "I", tag with speaker and set character flag to True
-    
-    # else, if token is "you", tag with speaker from previous or next dialogue
-    
-    # nearbyChars=np.dstack((df.speaker.shift(i).values for i in range(-2, 3)[::-1]))[0]
-    # for i in range(len(df)):
-    #     df.set_value(i, 'nearbyChars', nearbyChars[i])
+    return row['tokens']
 
 
 ### Model 2: Speaker n-gram model:
@@ -55,13 +62,15 @@ def pronResolution_hmm():
     pass
 
 
-def pronResolution_sent(cDict, rows):
+def pronResolution_sent(charDict, rows):
     '''
     cDict is a dictionary of characters and their total sentiment values in the movie
     '''
-    hasChar = False
-    return rows.tokens, hasChar
+    pass
 
+
+
+### Evaluate models
 def pronEval(dfList, numExamples=50):
     '''
     This function takes a list of dfs and evaluate model performance
@@ -73,9 +82,10 @@ def pronEval(dfList, numExamples=50):
     
     # indexes for lines of dialogue with resolved pronouns
     df = dfList[0]
-    charIndex = list(df[df.hasChar == True].index)
+    pronIndex = list(df[df.num_pron > 0].index)
+    
     # sample random line to evaluate resolved pronoun
-    selectLine = np.random.choice(charIndex, min(len(charIndex), numExamples), replace=False)
+    selectLine = np.random.choice(pronIndex, min(len(pronIndex), numExamples), replace=False)
     
     # for each line
     for lineNum in selectLine:
