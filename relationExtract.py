@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import os
 
+def getRelations():
+    return {0:'others', 1:'positive mentioning', 2:'negative mentioning', 3:'neutral'}
+
 def simpleRE(rows):
     '''
     takes in tokens and extract potential relations
