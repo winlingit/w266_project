@@ -83,6 +83,11 @@ def pronResolution_nnMod(charList, row):
                 p = [0.5+prev_match/midpoint, 0.5+next_match/midpoint]
                 p = [x / sum(p) for x in p]
                 
+                if not prev_speaker:
+                    p = [0,1]
+                if not next_speaker:
+                    p = [1,0]
+                
                 #assign previous or next speaker based on the probability
                 token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
                 
