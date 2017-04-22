@@ -51,6 +51,47 @@ def pronResolution_nn(charList, row):
 
     return row['tokens']
 
+### Model 1.1: Current and adjacent speakers (2 speaker model)
+def pronResolution_nnMod(charList, row):
+    '''
+    I => current speaker, you => previous or next speaker
+    '''
+    
+    for token in row['tokens']:
+        
+        # if token is pronoun, add character name to token
+        if token['pos'] == 'PRON':
+            pLemma = token['lemma']
+            
+            # if token is "I",
+            if pLemma.lower() in ['i', 'me']:
+                token['char'] = row['speaker']
+                
+            # else, if token is "you", add previous or next speaker to dialogue
+            elif pLemma.lower() == 'you':
+                #get mid point and previous/next speakers
+                midpoint = len(row['nearbyChars']) // 2
+                prev_speaker = row['nearbyChars'][midpoint - 1]
+                next_speaker = row['nearbyChars'][midpoint + 1]
+                
+                #count how often the current speaker appears in dialogues before and after
+                #this can help with scene switches
+                prev_match = sum([x == row['speaker'] for x in row['nearbyChars'][:midpoint]])
+                next_match = sum([x == row['speaker'] for x in row['nearbyChars'][midpoint+1:]])
+                
+                #compute probability and normalize
+                p = [0.5+prev_match/midpoint, 0.5+next_match/midpoint]
+                p = [x / sum(p) for x in p]
+                
+                #assign previous or next speaker based on the probability
+                token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
+                
+            # else, add random character name to token
+            elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
+                token['char'] = [np.random.choice(charList)]
+
+    return row['tokens']
+
 
 ### Model 2: Speaker n-gram model:
 def pronResolution_ngram():
