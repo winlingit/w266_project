@@ -178,4 +178,4 @@ def pronEval(scripts):
             result = 0
         else:
             result = modelResult[0]/modelResult[1]
-        print('model %i: precision = %.2f (%i/%i correct)'%(i+1, result, correct[i], sampled[i]))
+        print('script %i: precision = %.2f (%i/%i correct)'%(i+1, result, correct[i], sampled[i]))
