@@ -57,11 +57,9 @@ def extract_mention_team(rows):
     
     if num_other_persons_mentioned > 2:
         persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker]
-        ent2 = ''
         for e in persons_list:
-            ent2 += ', ' + e['name']
-        relation.append({'relation':rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2':ent2, 'class':3, 'line':rows.name})
+            relation.append({'relation':rows.dialogue, 
+                             'ent1':rows.speaker, 'ent2':e['name'], 'class':3, 'line':rows.name})
         return relation
     else:
         return None
@@ -115,28 +113,25 @@ def extract_mention_sentiment(rows):
     persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker]
     sentiment_score = rows.sentiment['score']
     sentiment_mag = rows.sentiment['magnitude']
-    ent2 = ''
     
     for e in persons_list:
-        ent2 += ', ' + e['name']
-        
-    if not persons_list:
-        return None
+        if not persons_list:
+            return None
     
-    elif sentiment_score > 0.4:
-        relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': ent2, 'class': 2, 'line':rows.name})
+        elif sentiment_score > 0.4:
+            relation.append({'relation': rows.dialogue, 
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 2, 'line':rows.name})
     
-    elif sentiment_score < -0.4:
-        relation.append({'relation': rows.dialogue, 
+        elif sentiment_score < -0.4:
+            relation.append({'relation': rows.dialogue, 
                              'ent1':rows.speaker, 'ent2': ent2, 'class': 1, 'line':rows.name})
                          
-    elif sentiment_mag > 1.0:
-        relation.append({'relation': rows.dialogue, 
+        elif sentiment_mag > 1.0:
+            relation.append({'relation': rows.dialogue, 
                              'ent1':rows.speaker, 'ent2': ent2, 'class': 4, 'line':rows.name})
         
-    else:
-        return None
+        else:
+            return None
 
 def REEval(dfList, numExamples=50):
     '''
