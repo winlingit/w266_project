@@ -24,7 +24,6 @@ def simpleRE(rows):
             nsubj = i
             verb = token['index']
         if 'OBJ' in token['label'] and token['index'] == verb:
-            #print(tokens[nsubj])
             subj = rows.tokens[nsubj].get('char', rows.tokens[nsubj]['content'])
             obj = rows.tokens[i].get('char', rows.tokens[i]['content'])
             relation.append({'relation':rows.tokens[verb]['content'], 
@@ -55,6 +54,7 @@ def extract_relation_categories(rows):
 def extract_mention_team(rows):
     relation = []
     num_other_persons_mentioned = len([e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker])
+    
     if num_other_persons_mentioned > 2:
         persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker]
         ent2 = ''
@@ -118,17 +118,20 @@ def extract_mention_sentiment(rows):
     ent2 = ''
     
     for e in persons_list:
-        ent2 += e['name']
+        ent2 += ', ' + e['name']
         
     if not persons_list:
         return None
     
-    elif abs(sentiment_score) > 0.5:
-        for p in persons_list:
-            relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': p['name'], 'class': (sentiment_score > 0) + 1, 'line':rows.name})
+    elif sentiment_score > 0.4:
+        relation.append({'relation': rows.dialogue, 
+                             'ent1':rows.speaker, 'ent2': ent2, 'class': 2, 'line':rows.name})
+    
+    elif sentiment_score < -0.4:
+        relation.append({'relation': rows.dialogue, 
+                             'ent1':rows.speaker, 'ent2': ent2, 'class': 1, 'line':rows.name})
                          
-    elif rows.sentiment['magnitude'] > 2:
+    elif sentiment_mag > 1.0:
         relation.append({'relation': rows.dialogue, 
                              'ent1':rows.speaker, 'ent2': ent2, 'class': 4, 'line':rows.name})
         
