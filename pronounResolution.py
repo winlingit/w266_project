@@ -35,14 +35,14 @@ def pronResolution_nn(charList, row):
         
         # if token is pronoun, add character name to token
         if token['pos'] == 'PRON':
-            type = token['content']
+            pLemma = token['content']
             
             # if token is "I",
-            if type.lower() == 'i':
+            if pLemma.lower() == 'i':
                 token['char'] = row['speaker']
                 
             # else, if token is "you", add previous or next speaker to dialogue
-            elif type.lower() == 'you':
+            elif pLemma.lower() == 'you':
                 token['char'] = np.random.choice([row['speaker_prev'], row['speaker_next']])
                 
             # else, add random character name to token
@@ -117,45 +117,45 @@ def pronResolution_sent(charDict, rows):
 
 
 ### Evaluate models
-def pronEval(dfList, numExamples=50):
+def pronEval(scripts):
     '''
     This function takes a list of dfs and evaluate model performance
     Enhance the original google api df with one of the model functions
     '''
-    numModels = len(dfList)
-    sampled = np.zeros(numModels)
-    correct = np.zeros(numModels)
-    
-    # indexes for lines of dialogue with resolved pronouns
-    df = dfList[0]
-    pronIndex = list(df[df.num_pron > 0].index)
-    
-    # sample random line to evaluate resolved pronoun
-    selectLine = np.random.choice(pronIndex, min(len(pronIndex), numExamples), replace=False)
-    
-    # for each line
-    for lineNum in selectLine:
+    numScripts = len(scripts)
+    sampled = np.zeros(numScripts)
+    correct = np.zeros(numScripts)
     
     # for each model df, select line to analyze
-        for m in range(numModels):
-            
-            # select model results
-            df = dfList[m]
+    for i, scriptNum in enumerate(scripts.keys()):
+        
+        # select model results for script
+        script = scripts[scriptNum]
+        df = script['df']
+        evalLines = script['eval']
+        print i, scriptNum, evalLines
+        
+        # for each line to evaluate
+        for lineNum in evalLines:
+            # resulting list of pronouns and referenced characters
             charList = [(x['content'], x['char']) for x in df.loc[lineNum]['tokens'] if 'char' in x]
 
-            # print line being analyzed
+            # print main line being analyzed, 2 lines before/after
             print('\n' + '*'*8 + ' line {} '.format(lineNum) + '*'*8)
-            for rowNum in range(max(0, lineNum - 2), min(len(dfList[m]), lineNum + 3)):
+            for rowNum in range(max(0, lineNum - 2), min(len(df), lineNum + 3)):
+                speaker = df.loc[rowNum]['speaker']
+                dialogue = df.loc[rowNum]['dialogue']
+                
                 if rowNum == lineNum:
-                    print('=> {}. {}:\n=> {}\n'.format(rowNum, df.loc[rowNum]['speaker'], df.loc[rowNum]['dialogue']))
+                    print('=> {}. {}:\n=> {}\n'.format(rowNum, speaker, dialogue ))
                 else:
-                    print('{}. {}:\n{}\n'.format(rowNum, df.loc[rowNum]['speaker'], df.loc[rowNum]['dialogue']))
+                    print('{}. {}:\n{}\n'.format(rowNum, speaker, dialogue))
 
             # print resolved pronouns from model
-            print('*'*8 + ' test model {}: line {} '.format(m+1, lineNum) + '*'*8)
+            print('*'*8 + ' evaluate line {} in {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
-            for i, char in enumerate(charList):
-                print('{}. {} => {}'.format(i+1, char[0], char[1]))
+            for j, char in enumerate(charList):
+                print('{}. {} => {}'.format(j+1, char[0], char[1]))
 
             collectInput = False
 
@@ -167,11 +167,11 @@ def pronEval(dfList, numExamples=50):
                 except:
                     print('incorrect input, only numbers allowed')
 
-            # update counts of lines sampled from script and correctly resolved pronouns 
-            sampled[m] += len(charList)
-            correct[m] += count
-        
-    # calculate and print precision for all models
+            # update counts of total/correct examples
+            sampled[i] += len(charList)
+            correct[i] += count
+    
+    # calculate and print precision for all scripts
     print('\n' + '*'*8 + ' test results ' + '*'*8)
     for i, modelResult in enumerate(zip(correct, sampled)):
         if modelResult[0] == 0:
