@@ -116,13 +116,14 @@ def pronResolution_sent(charDict, rows):
 
 
 
-### Evaluate models
+### Evaluate models for a set of scripts
 def pronEval(scripts):
     '''
     This function takes a list of dfs and evaluate model performance
     Enhance the original google api df with one of the model functions
     '''
     numScripts = len(scripts)
+    scriptNames = scripts.keys()
     sampled = np.zeros(numScripts)
     correct = np.zeros(numScripts)
     
@@ -133,7 +134,6 @@ def pronEval(scripts):
         script = scripts[scriptNum]
         df = script['df']
         evalLines = script['eval']
-        print i, scriptNum, evalLines
         
         # for each line to evaluate
         for lineNum in evalLines:
@@ -141,7 +141,7 @@ def pronEval(scripts):
             charList = [(x['content'], x['char']) for x in df.loc[lineNum]['tokens'] if 'char' in x]
 
             # print main line being analyzed, 2 lines before/after
-            print('\n' + '*'*8 + ' line {} '.format(lineNum) + '*'*8)
+            print('\n' + '*'*8 + ' line {} -- {} '.format(lineNum, script['name']) + '*'*8)
             for rowNum in range(max(0, lineNum - 2), min(len(df), lineNum + 3)):
                 speaker = df.loc[rowNum]['speaker']
                 dialogue = df.loc[rowNum]['dialogue']
@@ -152,7 +152,7 @@ def pronEval(scripts):
                     print('{}. {}:\n{}\n'.format(rowNum, speaker, dialogue))
 
             # print resolved pronouns from model
-            print('*'*8 + ' evaluate line {} in {} '.format(lineNum, script['name']) + '*'*8)
+            print('*'*8 + ' evaluate line {} -- {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for j, char in enumerate(charList):
                 print('{}. {} => {}'.format(j+1, char[0], char[1]))
@@ -170,12 +170,16 @@ def pronEval(scripts):
             # update counts of total/correct examples
             sampled[i] += len(charList)
             correct[i] += count
+            df.loc[lineNum]['correct'] = count
     
-    # calculate and print precision for all scripts
+    # print model precision for each script and overall
     print('\n' + '*'*8 + ' test results ' + '*'*8)
     for i, modelResult in enumerate(zip(correct, sampled)):
         if modelResult[0] == 0:
             result = 0
         else:
             result = modelResult[0]/modelResult[1]
-        print('script %i: precision = %.2f (%i/%i correct)'%(i+1, result, correct[i], sampled[i]))
+        print('script %i: precision = %.2f (%i/%i correct)' % (i+1, result, correct[i], sampled[i]))
+    
+    result = sum(correct)/sum(sampled)
+    print('overall: precision = %.2f (%i/%i correct)' % (result, sum(correct), sum(sampled)))
