@@ -20,7 +20,7 @@ def pronResolution_base(charList, row):
         
         # if token is pronoun, add random character name to token
         if token['pos'] == 'PRON':
-            token['char'] = [np.random.choice(charList)]
+            token['char'] = np.random.choice(charList)
 
     return row['tokens'], row['entities']
 
@@ -38,16 +38,16 @@ def pronResolution_nn(charList, row):
             pLemma = token['content']
             
             # if token is "I",
-            if pLemma.lower() in ['i', 'me']:
+            if pLemma.lower() in ['i', 'me', 'my', 'mine']:
                 token['char'] = row['speaker']
                 
             # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() == 'you':
+            elif pLemma.lower() in ['you', 'your', 'yours']:
                 token['char'] = np.random.choice([row['speaker_prev'], row['speaker_next']])
                 
             # else, add random character name to token
             else:
-                token['char'] = [np.random.choice(charList)]
+                token['char'] = np.random.choice(charList)
 
     return row['tokens'], row['entities']
 
@@ -92,8 +92,8 @@ def pronResolution_nnMod(charList, row):
             pLemma = token['lemma']
             
             # if token is "I",
-            if pLemma.lower() in ['i', 'me']:
-                token['char'] = [row['speaker']]
+            if pLemma.lower() in ['i', 'me', 'my', 'mine']:
+                token['char'] = row['speaker']
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
@@ -104,7 +104,7 @@ def pronResolution_nnMod(charList, row):
                     row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() == 'you':
+            elif pLemma.lower() in ['you', 'your', 'yours']:
                 #get mid point and previous/next speakers
                 midpoint = len(row['nearbyChars']) // 2
                 prev_speaker = row['nearbyChars'][midpoint - 1]
@@ -137,7 +137,7 @@ def pronResolution_nnMod(charList, row):
                 
             # else, add random character name to token
             elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
-                token['char'] = [np.random.choice(charList)]
+                token['char'] = np.random.choice(charList)
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
@@ -177,7 +177,7 @@ def pronEval(scripts):
         script = scripts[scriptNum]
         df = script['df']
         evalLines = script['eval']
-        print (i, scriptNum, evalLines)
+        # print (i, scriptNum, evalLines)
         
         # for each line to evaluate
         for lineNum in evalLines:
@@ -199,10 +199,10 @@ def pronEval(scripts):
             print('*'*8 + ' evaluate line {} in {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for j, char in enumerate(charList):
-                print('{}. {} => {}'.format(j+1, char[0].encode('utf-8'), char[1].encode('utf-8'))
+                print('%i. %s => %s' % (j+1, char[0].encode('utf-8'), char[1].encode('utf-8')))
                       
             collectInput = False
-
+            
             # prompt user for count of correctly resolved pronouns
             while not collectInput:
                 try:
@@ -225,3 +225,5 @@ def pronEval(scripts):
         else:
             result = modelResult[0]/modelResult[1]
         print('script %i: precision = %.2f (%i/%i correct)'%(i+1, result, correct[i], sampled[i]))
+    result = sum(correct)/sum(sampled)
+    print('overall: precision = %.2f (%i/%i correct)'%(result, sum(correct), sum(sampled)))
