@@ -38,7 +38,7 @@ def pronResolution_nn(charList, row):
             pLemma = token['content']
             
             # if token is "I",
-            if pLemma.lower() == 'i':
+            if pLemma.lower() in ['i', 'me']:
                 token['char'] = row['speaker']
                 
             # else, if token is "you", add previous or next speaker to dialogue
@@ -155,8 +155,8 @@ def pronEval(scripts):
             print('*'*8 + ' evaluate line {} -- {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for j, char in enumerate(charList):
-                print('{}. {} => {}'.format(j+1, char[0], char[1]))
-
+                print('{}. {} => {}'.format(j+1, char[0].encode('utf-8'), char[1].encode('utf-8'))
+                      
             collectInput = False
 
             # prompt user for count of correctly resolved pronouns
@@ -170,7 +170,7 @@ def pronEval(scripts):
             # update counts of total/correct examples
             sampled[i] += len(charList)
             correct[i] += count
-            df.loc[lineNum]['correct'] = count
+            df.set_value(lineNum, 'correct', count)
     
     # print model precision for each script and overall
     print('\n' + '*'*8 + ' test results ' + '*'*8)
