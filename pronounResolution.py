@@ -22,7 +22,7 @@ def pronResolution_base(charList, row):
         if token['pos'] == 'PRON':
             token['char'] = [np.random.choice(charList)]
 
-    return row['tokens']
+    return row['tokens'], row['entities']
 
 
 ### Model 1: Current and adjacent speakers (2 speaker model)
@@ -49,7 +49,7 @@ def pronResolution_nn(charList, row):
             else:
                 token['char'] = [np.random.choice(charList)]
 
-    return row['tokens']
+    return row['tokens'], row['entities']
 
 ### Model 1.1: Current and adjacent speakers (2 speaker model)
 def pronResolution_nnMod(charList, row):
@@ -57,6 +57,34 @@ def pronResolution_nnMod(charList, row):
     I => current speaker, you => previous or next speaker
     '''
     
+    for entity in row['entities']:
+        
+        #only run checks for person entity, change work of art to person because of marvel dataset
+        if entity['type'] == 'WORK_OF_ART':
+            entity['type'] = 'PERSON'
+            
+        if entity['type'] != 'PERSON':
+            continue
+            
+        #first check for exact match, if so do nothing
+        if entity['name'] in charList:
+            continue
+        #then check for case mistmatch
+        for char in charList:
+            if char.lower() == entity['name'].lower():
+                entity['name'] = char
+                match=True
+                break
+                                
+        #lastly check for a partial match
+        else:            
+            for char in charList:
+                if entity['name'].lower() in char.lower():
+                    entity['name'] = char
+                    #print('found partial match')
+                    break
+
+        
     for token in row['tokens']:
         
         # if token is pronoun, add character name to token
@@ -66,6 +94,14 @@ def pronResolution_nnMod(charList, row):
             # if token is "I",
             if pLemma.lower() in ['i', 'me']:
                 token['char'] = [row['speaker']]
+                
+                for entity in row['entities']:
+                    if token['char'] == entity['name']:
+                        entity['mention'].append(token['content'])
+                        match = True
+                        break
+                else:
+                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() == 'you':
@@ -91,11 +127,28 @@ def pronResolution_nnMod(charList, row):
                 #assign previous or next speaker based on the probability
                 token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
                 
+                for entity in row['entities']:
+                    if token['char'] == entity['name']:
+                        entity['mention'].append(token['content'])
+                        match = True
+                        break
+                else:
+                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                
             # else, add random character name to token
             elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
                 token['char'] = [np.random.choice(charList)]
+                
+                for entity in row['entities']:
+                    if token['char'] == entity['name']:
+                        entity['mention'].append(token['content'])
+                        match = True
+                        break
+                else:
+                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    
 
-    return row['tokens']
+    return row['tokens'], row['entities']
 
 
 ### Model 2: Speaker n-gram model:
@@ -107,23 +160,13 @@ def pronResolution_ngram():
 def pronResolution_hmm():
     pass
 
-
-def pronResolution_sent(charDict, rows):
-    '''
-    cDict is a dictionary of characters and their total sentiment values in the movie
-    '''
-    pass
-
-
-
-### Evaluate models for a set of scripts
+### Evaluate models
 def pronEval(scripts):
     '''
     This function takes a list of dfs and evaluate model performance
     Enhance the original google api df with one of the model functions
     '''
     numScripts = len(scripts)
-    scriptNames = scripts.keys()
     sampled = np.zeros(numScripts)
     correct = np.zeros(numScripts)
     
@@ -134,6 +177,7 @@ def pronEval(scripts):
         script = scripts[scriptNum]
         df = script['df']
         evalLines = script['eval']
+        print (i, scriptNum, evalLines)
         
         # for each line to evaluate
         for lineNum in evalLines:
@@ -141,7 +185,7 @@ def pronEval(scripts):
             charList = [(x['content'], x['char']) for x in df.loc[lineNum]['tokens'] if 'char' in x]
 
             # print main line being analyzed, 2 lines before/after
-            print('\n' + '*'*8 + ' line {} -- {} '.format(lineNum, script['name']) + '*'*8)
+            print('\n' + '*'*8 + ' line {} '.format(lineNum) + '*'*8)
             for rowNum in range(max(0, lineNum - 2), min(len(df), lineNum + 3)):
                 speaker = df.loc[rowNum]['speaker']
                 dialogue = df.loc[rowNum]['dialogue']
@@ -152,7 +196,7 @@ def pronEval(scripts):
                     print('{}. {}:\n{}\n'.format(rowNum, speaker, dialogue))
 
             # print resolved pronouns from model
-            print('*'*8 + ' evaluate line {} -- {} '.format(lineNum, script['name']) + '*'*8)
+            print('*'*8 + ' evaluate line {} in {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for j, char in enumerate(charList):
                 print('{}. {} => {}'.format(j+1, char[0], char[1]))
@@ -170,16 +214,12 @@ def pronEval(scripts):
             # update counts of total/correct examples
             sampled[i] += len(charList)
             correct[i] += count
-            df.loc[lineNum]['correct'] = count
     
-    # print model precision for each script and overall
+    # calculate and print precision for all scripts
     print('\n' + '*'*8 + ' test results ' + '*'*8)
     for i, modelResult in enumerate(zip(correct, sampled)):
         if modelResult[0] == 0:
             result = 0
         else:
             result = modelResult[0]/modelResult[1]
-        print('script %i: precision = %.2f (%i/%i correct)' % (i+1, result, correct[i], sampled[i]))
-    
-    result = sum(correct)/sum(sampled)
-    print('overall: precision = %.2f (%i/%i correct)' % (result, sum(correct), sum(sampled)))
+        print('script %i: precision = %.2f (%i/%i correct)'%(i+1, result, correct[i], sampled[i]))
