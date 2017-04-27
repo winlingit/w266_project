@@ -98,10 +98,10 @@ def pronResolution_nnMod(charCounter, row):
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
+                        entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() in ['you', 'your', 'yours']:
@@ -129,13 +129,15 @@ def pronResolution_nnMod(charCounter, row):
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
+                        entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, assume third person
-            elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those', 'whose', 'who', 'whom', 'these']:
+            elif pLemma.lower() in ['he', 'his', 'him', 'her', 'hers']:
+            #elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those', 'whose', 'who', 'whom', 'these',
+                                       #'whosoever', 'whatever']:
                 charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
                 charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
                 pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
@@ -144,23 +146,15 @@ def pronResolution_nnMod(charCounter, row):
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
+                        entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                     
 
     return row['tokens'], row['entities']
 
 
-### Model 2: Speaker n-gram model:
-def pronResolution_ngram():
-    pass
-
-
-### Model 3: Based on transition probabilities between characters
-def pronResolution_hmm():
-    pass
 
 ### Evaluate models
 def pronEval(scripts):
