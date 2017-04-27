@@ -33,11 +33,11 @@ def simpleRE(rows):
     
 def extract_relation_categories(rows):
     relation = []
-    team_relations = extract_mention_team(rows)
+    #team_relations = extract_mention_team(rows)
     places_mentioned = extract_place_mentioned(rows)
     mention_sentiment_relations = extract_mention_sentiment(rows)
-    if team_relations:
-        relation.extend(team_relations)
+    #if team_relations:
+        #relation.extend(team_relations)
     if places_mentioned:
         relation.extend(places_mentioned)
     if mention_sentiment_relations:
@@ -98,37 +98,38 @@ def extract_place_mentioned(rows):
                 relation.append({'relation': rel_phrase, 
                                  'ent1':subj, 'ent2':obj, 'class':5, 'line':rows.name})
         
-        if relation:
-            return relation
-        else:
-            return None
+    if relation:
+        return relation
+    else:
+        return None
     
 
 def extract_mention_sentiment(rows):
     
     relation = []
-    persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker]
+    persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] != rows.speaker]
+    #print(persons_list)
     sentiment_score = rows.sentiment['score']
     sentiment_mag = rows.sentiment['magnitude']
     
     for e in persons_list:
-        if not persons_list:
-            return None
     
-        elif sentiment_score > 0.4:
+        if sentiment_score > 0.4:
             relation.append({'relation': rows.dialogue, 
                              'ent1':rows.speaker, 'ent2': e['name'], 'class': 2, 'line':rows.name})
     
         elif sentiment_score < -0.4:
             relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': ent2, 'class': 1, 'line':rows.name})
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 1, 'line':rows.name})
                          
         elif sentiment_mag > 1.0:
             relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': ent2, 'class': 4, 'line':rows.name})
-        
-        else:
-            return None
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 4, 'line':rows.name})
+
+    if relation:
+        return relation
+    else:
+        return None
 
 def REEval(dfList, numExamples=50):
     '''
@@ -167,7 +168,7 @@ def REEval(dfList, numExamples=50):
             for relation in df.loc[lineNum]['relations']:
                 print('entities: {} => {}'.format(relation['ent1'], relation['ent2']))
                 print('relation: {}'.format(relation['relation']))
-                print('category: {}'.format(relation['class']))
+                print('category: {}. {}'.format(relation['class'], getRelations()[relation['class']]))
                       
 
             collectInput = False
