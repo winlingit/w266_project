@@ -3,7 +3,7 @@ import nltk
 import numpy as np
 import pandas as pd
 import os
-
+from collections import Counter
 
 ### Model 0: Random character
 def pronResolution_base(charList, row):
@@ -52,7 +52,7 @@ def pronResolution_nn(charList, row):
     return row['tokens'], row['entities']
 
 ### Model 1.1: Current and adjacent speakers (2 speaker model)
-def pronResolution_nnMod(charCounter, row):
+def pronResolution_nnMod(charCounter, row, absolute=False):
     '''
     I => current speaker, you => previous or next speaker
     '''
@@ -104,6 +104,30 @@ def pronResolution_nnMod(charCounter, row):
                 else:
                     row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
+            #if token is "we"
+            if pLemma.lower() in ['we', 'us', 'ours', 'our']:
+                if absolute:
+                    token['char'] = list(set(charCounter.keys()))
+                    
+                else:
+                    token['char'] = [row['speaker']]
+                    nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
+                    charSample = nearbyCount.keys()
+                    charSum = sum(nearbyCount.values())
+                    pSample = [nearbyCount[x]/charSum for x in nearbyCount]
+                    randomProb = np.random.rand()
+                    for char, prob in zip(charSample, pSample):
+                        if prob > randomProb:
+                            token['char'].append(char)
+                
+                for entity in row['entities']:
+                    if entity['name'] in token['char']:
+                        entity['mentions'].append(token['content'])
+                        break
+                else:
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+            
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() in ['you', 'your', 'yours']:
                 #check if 'you' is previously resolved
@@ -129,9 +153,14 @@ def pronResolution_nnMod(charCounter, row):
                         p = [0,1]
                     if not next_speaker:
                         p = [1,0]
-
-                    #assign previous or next speaker based on the probability
-                    token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
+                    
+                    if absolute:
+                        token['char'] = [[prev_speaker, next_speaker][np.argmax(p)]]
+                        
+                    else:
+                        #assign previous or next speaker based on the probability
+                        token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
+                    
                     pronDict['you'] = token['char']
 
                 for entity in row['entities']:
@@ -150,7 +179,11 @@ def pronResolution_nnMod(charCounter, row):
                     charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
                     pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
 
-                    token['char'] = [np.random.choice(charSample, p=pSample)]
+                    if absolute:
+                        token['char'] = [charSample[np.argmax(pSample)]]
+                    else:
+                        token['char'] = [np.random.choice(charSample, p=pSample)]
+                    
                     pronDict['he'] = token['char']
                 
                 for entity in row['entities']:
@@ -168,7 +201,10 @@ def pronResolution_nnMod(charCounter, row):
                     charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
                     pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
 
-                    token['char'] = [np.random.choice(charSample, p=pSample)]
+                    if absolute:
+                        token['char'] = [charSample[np.argmax(pSample)]]
+                    else:
+                        token['char'] = [np.random.choice(charSample, p=pSample)]
                     pronDict['she'] = token['char']
                 
                 for entity in row['entities']:
