@@ -16,10 +16,7 @@ def simpleRE(rows):
     relation = []
     nsubj = -1
     verb = -1
-    print 'rows.token: ' + rows.token
     for i, token in enumerate(rows.tokens):
-        print 'i: ' + i
-        print 'token: ' + token
         if token['label'] == 'NSUBJ':
             nsubj = i
             verb = token['index']
