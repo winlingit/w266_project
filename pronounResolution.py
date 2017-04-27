@@ -52,10 +52,11 @@ def pronResolution_nn(charList, row):
     return row['tokens'], row['entities']
 
 ### Model 1.1: Current and adjacent speakers (2 speaker model)
-def pronResolution_nnMod(charList, row):
+def pronResolution_nnMod(charCounter, row):
     '''
     I => current speaker, you => previous or next speaker
     '''
+    
     
     for entity in row['entities']:
         
@@ -67,10 +68,10 @@ def pronResolution_nnMod(charList, row):
             continue
             
         #first check for exact match, if so do nothing
-        if entity['name'] in charList:
+        if entity['name'] in charCounter.keys():
             continue
         #then check for case mistmatch
-        for char in charList:
+        for char in charCounter.keys():
             if char.lower() == entity['name'].lower():
                 entity['name'] = char
                 match=True
@@ -78,7 +79,7 @@ def pronResolution_nnMod(charList, row):
                                 
         #lastly check for a partial match
         else:            
-            for char in charList:
+            for char in charCounter.keys():
                 if entity['name'].lower() in char.lower():
                     entity['name'] = char
                     #print('found partial match')
@@ -133,9 +134,13 @@ def pronResolution_nnMod(charList, row):
                 else:
                     row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                 
-            # else, add random character name to token
-            elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
-                token['char'] = [np.random.choice(charList)]
+            # else, assume third person
+            elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those', 'whose', 'who', 'whom', 'these']:
+                charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
+                charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
+                pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
+                
+                token['char'] = [np.random.choice(charSample, p=pSample)]
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
