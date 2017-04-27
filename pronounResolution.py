@@ -167,13 +167,9 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                     if entity['name'] in token['char']:
                         entity['mentions'].append(token['content'])
                         break
-<<<<<<< HEAD
                     else:
                         row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
-=======
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
->>>>>>> cb74ee07d36a006cd1adcf45a2cb9c2a7ff40243
+
                 
             # else, assume third person
             elif pLemma.lower() in ['he', 'his', 'him']:
