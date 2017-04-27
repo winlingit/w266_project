@@ -39,15 +39,15 @@ def pronResolution_nn(charList, row):
             
             # if token is "I",
             if pLemma.lower() in ['i', 'me', 'my', 'mine']:
-                token['char'] = row['speaker']
+                token['char'] = [row['speaker']]
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() in ['you', 'your', 'yours']:
-                token['char'] = np.random.choice([row['speaker_prev'], row['speaker_next']])
+                token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
                 
             # else, add random character name to token
             else:
-                token['char'] = np.random.choice(charList)
+                token['char'] = [np.random.choice(charList)]
 
     return row['tokens'], row['entities']
 
@@ -93,12 +93,11 @@ def pronResolution_nnMod(charList, row):
             
             # if token is "I",
             if pLemma.lower() in ['i', 'me', 'my', 'mine']:
-                token['char'] = row['speaker']
+                token['char'] = [row['speaker']]
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
                         entity['mention'].append(token['content'])
-                        match = True
                         break
                 else:
                     row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
@@ -130,19 +129,17 @@ def pronResolution_nnMod(charList, row):
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
                         entity['mention'].append(token['content'])
-                        match = True
                         break
                 else:
                     row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, add random character name to token
             elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
-                token['char'] = np.random.choice(charList)
+                token['char'] = [np.random.choice(charList)]
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
                         entity['mention'].append(token['content'])
-                        match = True
                         break
                 else:
                     row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
