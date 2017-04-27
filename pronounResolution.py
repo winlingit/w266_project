@@ -106,19 +106,25 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                 
             #if token is "we"
             if pLemma.lower() in ['we', 'us', 'ours', 'our']:
-                if absolute:
-                    token['char'] = list(set(charCounter.keys()))
-                    
+                if pronDict.get('we'):
+                    token['char'] = pronDict['we']
+
                 else:
-                    token['char'] = [row['speaker']]
-                    nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
-                    charSample = nearbyCount.keys()
-                    charSum = sum(nearbyCount.values())
-                    pSample = [nearbyCount[x]/charSum for x in nearbyCount]
-                    randomProb = np.random.rand()
-                    for char, prob in zip(charSample, pSample):
-                        if prob > randomProb:
-                            token['char'].append(char)
+                    if absolute:
+                        token['char'] = list(set(charCounter.keys()))
+
+                    else:
+                        token['char'] = [row['speaker']]
+                        nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
+                        charSample = nearbyCount.keys()
+                        charSum = sum(nearbyCount.values())
+                        pSample = [nearbyCount[x]/charSum for x in nearbyCount]
+                        randomProb = np.random.rand()
+                        for char, prob in zip(charSample, pSample):
+                            if prob > randomProb:
+                                token['char'].append(char)
+                                
+                    pronDict['we'] = token['char']
                 
                 for entity in row['entities']:
                     if entity['name'] in token['char']:
@@ -167,9 +173,8 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                     if entity['name'] in token['char']:
                         entity['mentions'].append(token['content'])
                         break
-                    else:
-                        row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
-
+                else:
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, assume third person
             elif pLemma.lower() in ['he', 'his', 'him']:
@@ -212,9 +217,35 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                     if entity['name'] in token['char']:
                         entity['mentions'].append(token['content'])
                         break
+                else:
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+            elif pLemma.lower() in ['they', 'them', 'theirs']:                
+                if pronDict.get('they'):
+                    token['char'] = pronDict.get('they')
+                else:
+                    numChar = np.random.choice([2, 3, 4])
+                    
+                    if absolute:
+                        charSample = Counter({x:charCounter[x] for x in charCounter 
+                                              if x not in ['narrator', row['speaker']]}).most_common(numChar)
+                        token['char'] = [x[0] for x in charSample]
+                    
                     else:
-                        row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
-                   
+                        charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
+                        charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
+                        pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]] 
+                        token['char'] = list(np.random.choice(charSample, size = numChar, replace=False, p=pSample))
+                        
+                pronDict['they'] = token['char']
+                    
+                for entity in row['entities']:
+                    if entity['name'] in token['char']:
+                        entity['mentions'].append(token['content'])
+                        break
+                else:
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                
 
     return row['tokens'], row['entities']
 
