@@ -132,8 +132,8 @@ def pronResolution_nnMod(charList, row):
                         entity['mention'].append(token['content'])
                         match = True
                         break
-                else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    else:
+                        row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, add random character name to token
             elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
@@ -144,8 +144,8 @@ def pronResolution_nnMod(charList, row):
                         entity['mention'].append(token['content'])
                         match = True
                         break
-                else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    else:
+                        row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
                     
 
     return row['tokens'], row['entities']
