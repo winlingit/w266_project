@@ -39,23 +39,24 @@ def pronResolution_nn(charList, row):
             
             # if token is "I",
             if pLemma.lower() in ['i', 'me', 'my', 'mine']:
-                token['char'] = row['speaker']
+                token['char'] = [row['speaker']]
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() in ['you', 'your', 'yours']:
-                token['char'] = np.random.choice([row['speaker_prev'], row['speaker_next']])
+                token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
                 
             # else, add random character name to token
             else:
-                token['char'] = np.random.choice(charList)
+                token['char'] = [np.random.choice(charList)]
 
     return row['tokens'], row['entities']
 
 ### Model 1.1: Current and adjacent speakers (2 speaker model)
-def pronResolution_nnMod(charList, row):
+def pronResolution_nnMod(charCounter, row):
     '''
     I => current speaker, you => previous or next speaker
     '''
+    
     
     for entity in row['entities']:
         
@@ -67,10 +68,10 @@ def pronResolution_nnMod(charList, row):
             continue
             
         #first check for exact match, if so do nothing
-        if entity['name'] in charList:
+        if entity['name'] in charCounter.keys():
             continue
         #then check for case mistmatch
-        for char in charList:
+        for char in charCounter.keys():
             if char.lower() == entity['name'].lower():
                 entity['name'] = char
                 match=True
@@ -78,7 +79,7 @@ def pronResolution_nnMod(charList, row):
                                 
         #lastly check for a partial match
         else:            
-            for char in charList:
+            for char in charCounter.keys():
                 if entity['name'].lower() in char.lower():
                     entity['name'] = char
                     #print('found partial match')
@@ -93,15 +94,14 @@ def pronResolution_nnMod(charList, row):
             
             # if token is "I",
             if pLemma.lower() in ['i', 'me', 'my', 'mine']:
-                token['char'] = row['speaker']
+                token['char'] = [row['speaker']]
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
-                        match = True
+                        entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, if token is "you", add previous or next speaker to dialogue
             elif pLemma.lower() in ['you', 'your', 'yours']:
@@ -129,36 +129,37 @@ def pronResolution_nnMod(charList, row):
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
-                        match = True
+                        entity['mentions'].append(token['content'])
                         break
+<<<<<<< HEAD
                     else:
                         row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
+=======
+                else:
+                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+>>>>>>> cb74ee07d36a006cd1adcf45a2cb9c2a7ff40243
                 
-            # else, add random character name to token
-            elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those']:
-                token['char'] = np.random.choice(charList)
+            # else, assume third person
+            elif pLemma.lower() in ['he', 'his', 'him', 'her', 'hers']:
+            #elif pLemma.lower() not in ['what', 'it', 'this', 'that', 'those', 'whose', 'who', 'whom', 'these',
+                                       #'whosoever', 'whatever']:
+                charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
+                charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
+                pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
+                
+                token['char'] = [np.random.choice(charSample, p=pSample)]
                 
                 for entity in row['entities']:
                     if token['char'] == entity['name']:
-                        entity['mention'].append(token['content'])
-                        match = True
+                        entity['mentions'].append(token['content'])
                         break
                     else:
                         row['entities'].append({'mention':token['char'][0], 'type':'PERSON', 'name':token['char'][0]})
-                    
+                   
 
     return row['tokens'], row['entities']
 
 
-### Model 2: Speaker n-gram model:
-def pronResolution_ngram():
-    pass
-
-
-### Model 3: Based on transition probabilities between characters
-def pronResolution_hmm():
-    pass
 
 ### Evaluate models
 def pronEval(scripts):
