@@ -38,11 +38,11 @@ def pronResolution_nn(charList, row):
             pLemma = token['content']
             
             # if token is "I",
-            if pLemma.lower() in ['i', 'me', 'my', 'mine']:
+            if pLemma.lower() in personPron1:
                 token['char'] = [row['speaker']]
                 
             # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() in ['you', 'your', 'yours']:
+            elif pLemma.lower() in personPron2:
                 token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
                 
             # else, add random character name to token
@@ -57,6 +57,12 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
     I => current speaker, you => previous or next speaker
     '''
     
+    personPron1 = ['i', 'me', 'my', 'mine', 'myself']
+    personPron1p = ['we', 'us', 'ours', 'our', 'ourselves']
+    personPron2 = ['you', 'your', 'yours', 'yourself']
+    personPron3m = ['he', 'his', 'him', 'himself']
+    personPron3f = ['she', 'her', 'hers', 'herself']
+    personPron3p = ['they', 'them', 'theirs', 'themselves']
     
     for entity in row['entities']:
         
@@ -94,7 +100,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
             pLemma = token['lemma']
             
             # if token is "I",
-            if pLemma.lower() in ['i', 'me', 'my', 'mine']:
+            if pLemma.lower() in personPron1:
                 token['char'] = [row['speaker']]
                 
                 for entity in row['entities']:
@@ -105,7 +111,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                     row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             #if token is "we"
-            if pLemma.lower() in ['we', 'us', 'ours', 'our']:
+            if pLemma.lower() in personPron1P:
                 if pronDict.get('we'):
                     token['char'] = pronDict['we']
 
@@ -135,7 +141,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
 
             
             # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() in ['you', 'your', 'yours']:
+            elif pLemma.lower() in personPron2:
                 #check if 'you' is previously resolved
                 if pronDict.get('you'):
                     token['char'] = pronDict.get('you')
@@ -177,7 +183,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                     row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, assume third person
-            elif pLemma.lower() in ['he', 'his', 'him']:
+            elif pLemma.lower() in personPron3m:
                 if pronDict.get('he'):
                     token['char'] = pronDict.get('he')
                 else:
@@ -199,7 +205,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                 else:
                     row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                     
-            elif pLemma.lower() in ['she', 'her', 'hers']:
+            elif pLemma.lower() in personPron3f:
                 if pronDict.get('she'):
                     token['char'] = pronDict.get('she')
                 else:
@@ -220,7 +226,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                 else:
                     row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
 
-            elif pLemma.lower() in ['they', 'them', 'theirs']:                
+            elif pLemma.lower() in personPron3p:                
                 if pronDict.get('they'):
                     token['char'] = pronDict.get('they')
                 else:
