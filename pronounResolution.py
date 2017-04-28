@@ -5,8 +5,23 @@ import pandas as pd
 import os
 from collections import Counter
 
-### Model 0: Random character
-def pronResolution_base(charList, row):
+
+def isPersonPron(lemma):
+    excludePronList = ['it', 'what',
+                       'this', 'that', 'these', 'those',
+                       'which', 'who', 'whom', 'whose',
+                       'whichever', 'whoever', 'whomever',
+                       'anybody', 'anyone', 'anything', 'each', 'either',
+                       'everybody', 'everyone', 'everything',
+                       'neither', 'nobody', 'no one', 'nothing',
+                       'one', 'somebody', 'someone', 'something',
+                       'all', 'any', 'most', 'none', 'some',
+                       'both', 'few', 'many', 'several']
+    
+    return not(lemma in excludePronList)
+    
+### Model 1: Random character
+def pronResolution_base(charCounter, row):
     '''
     cList is a list of characters(str) that appear in the movie
     tokens are from the processed csv files
@@ -20,13 +35,16 @@ def pronResolution_base(charList, row):
         
         # if token is pronoun, add random character name to token
         if token['pos'] == 'PRON':
-            token['char'] = np.random.choice(charList)
+            pLemma = token['content']
+            
+            if isPersonPron(pLemma):
+                token['char'] = np.random.choice(charCounter.keys())
 
     return row['tokens'], row['entities']
 
 
 ### Model 1: Current and adjacent speakers (2 speaker model)
-def pronResolution_nn(charList, row):
+def pronResolution_nn(charCounter, row):
     '''
     I => current speaker, you => previous or next speaker
     '''
@@ -37,21 +55,22 @@ def pronResolution_nn(charList, row):
         if token['pos'] == 'PRON':
             pLemma = token['content']
             
-            # if token is "I",
-            if pLemma.lower() in personPron1:
-                token['char'] = [row['speaker']]
-                
-            # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() in personPron2:
-                token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
-                
-            # else, add random character name to token
-            else:
-                token['char'] = [np.random.choice(charList)]
+            if isPersonPron(pLemma):
+                # if token is "I",
+                if pLemma.lower() in personPron1:
+                    token['char'] = [row['speaker']]
+
+                # else, if token is "you", add previous or next speaker to dialogue
+                elif pLemma.lower() in personPron2:
+                    token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
+
+                # else, add random character name to token
+                else:
+                    token['char'] = [np.random.choice(charCounter.keys())]
 
     return row['tokens'], row['entities']
 
-### Model 1.1: Current and adjacent speakers (2 speaker model)
+### Model 2: Current and adjacent speakers (2 speaker model)
 def pronResolution_nnMod(charCounter, row, absolute=False):
     '''
     I => current speaker, you => previous or next speaker
@@ -97,160 +116,164 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
         
         # if token is pronoun, add character name to token
         if token['pos'] == 'PRON':
+            
             pLemma = token['lemma']
             
-            # if token is "I",
-            if pLemma.lower() in personPron1:
-                token['char'] = [row['speaker']]
-                
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
-                
-            #if token is "we"
-            if pLemma.lower() in personPron1P:
-                if pronDict.get('we'):
-                    token['char'] = pronDict['we']
+            if isPersonPron(pLemma):
+                # if token is 1st-person pronoun
+                if pLemma.lower() in personPron1:
+                    token['char'] = [row['speaker']]
 
-                else:
-                    if absolute:
-                        token['char'] = list(set(charCounter.keys()))
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
+                    else:
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+                #if token is 1st-person plural pronoun
+                if pLemma.lower() in personPron1p:
+                    if pronDict.get('we'):
+                        token['char'] = pronDict['we']
 
                     else:
-                        token['char'] = [row['speaker']]
-                        nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
-                        charSample = nearbyCount.keys()
-                        charSum = sum(nearbyCount.values())
-                        pSample = [nearbyCount[x]/charSum for x in nearbyCount]
-                        randomProb = np.random.rand()
-                        for char, prob in zip(charSample, pSample):
-                            if prob > randomProb:
-                                token['char'].append(char)
-                                
-                    pronDict['we'] = token['char']
-                
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                        if absolute:
+                            token['char'] = list(set(charCounter.keys()))
 
-            
-            # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() in personPron2:
-                #check if 'you' is previously resolved
-                if pronDict.get('you'):
-                    token['char'] = pronDict.get('you')
-                
-                #get mid point and previous/next speakers
-                else:
-                    midpoint = len(row['nearbyChars']) // 2
-                    prev_speaker = row['nearbyChars'][midpoint - 1]
-                    next_speaker = row['nearbyChars'][midpoint + 1]
+                        else:
+                            token['char'] = [row['speaker']]
+                            nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
+                            charSample = nearbyCount.keys()
+                            charSum = sum(nearbyCount.values())
+                            pSample = [float(nearbyCount[x])/charSum for x in charSample]
 
-                    #count how often the current speaker appears in dialogues before and after
-                    #this can help with scene switches
-                    prev_match = sum([x == row['speaker'] for x in row['nearbyChars'][:midpoint]])
-                    next_match = sum([x == row['speaker'] for x in row['nearbyChars'][midpoint+1:]])
+                            randomProb = np.random.rand()
+                            for char, prob in zip(charSample, pSample):
+                                if prob > randomProb:
+                                    token['char'].append(char)
 
-                    #compute probability and normalize
-                    p = [0.5+prev_match/midpoint, 0.5+next_match/midpoint]
-                    p = [x / sum(p) for x in p]
+                        pronDict['we'] = token['char']
 
-                    if not prev_speaker:
-                        p = [0,1]
-                    if not next_speaker:
-                        p = [1,0]
-                    
-                    if absolute:
-                        token['char'] = [[prev_speaker, next_speaker][np.argmax(p)]]
-                        
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
                     else:
-                        #assign previous or next speaker based on the probability
-                        token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
-                    
-                    pronDict['you'] = token['char']
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
 
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
-                
-            # else, assume third person
-            elif pLemma.lower() in personPron3m:
-                if pronDict.get('he'):
-                    token['char'] = pronDict.get('he')
-                else:
-                    charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                    charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                    pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
 
-                    if absolute:
-                        token['char'] = [charSample[np.argmax(pSample)]]
+                # else, if token is 2nd-person pronoun, add previous or next speaker to dialogue
+                elif pLemma.lower() in personPron2:
+                    #check if 'you' is previously resolved
+                    if pronDict.get('you'):
+                        token['char'] = pronDict.get('you')
+
+                    #get mid point and previous/next speakers
                     else:
-                        token['char'] = [np.random.choice(charSample, p=pSample)]
-                    
-                    pronDict['he'] = token['char']
-                
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
-                    
-            elif pLemma.lower() in personPron3f:
-                if pronDict.get('she'):
-                    token['char'] = pronDict.get('she')
-                else:
-                    charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                    charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                    pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
+                        midpoint = len(row['nearbyChars']) // 2
+                        prev_speaker = row['nearbyChars'][midpoint - 1]
+                        next_speaker = row['nearbyChars'][midpoint + 1]
 
-                    if absolute:
-                        token['char'] = [charSample[np.argmax(pSample)]]
-                    else:
-                        token['char'] = [np.random.choice(charSample, p=pSample)]
-                    pronDict['she'] = token['char']
-                
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                        #count how often the current speaker appears in dialogues before and after
+                        #this can help with scene switches
+                        prev_match = sum([x == row['speaker'] for x in row['nearbyChars'][:midpoint]])
+                        next_match = sum([x == row['speaker'] for x in row['nearbyChars'][midpoint+1:]])
 
-            elif pLemma.lower() in personPron3p:                
-                if pronDict.get('they'):
-                    token['char'] = pronDict.get('they')
-                else:
-                    numChar = np.random.choice([2, 3, 4])
-                    
-                    if absolute:
-                        charSample = Counter({x:charCounter[x] for x in charCounter 
-                                              if x not in ['narrator', row['speaker']]}).most_common(numChar)
-                        token['char'] = [x[0] for x in charSample]
-                    
+                        #compute probability and normalize
+                        p = [0.5+prev_match/midpoint, 0.5+next_match/midpoint]
+                        p = [x / sum(p) for x in p]
+
+                        if not prev_speaker:
+                            p = [0,1]
+                        if not next_speaker:
+                            p = [1,0]
+
+                        if absolute:
+                            token['char'] = [[prev_speaker, next_speaker][np.argmax(p)]]
+
+                        else:
+                            #assign previous or next speaker based on the probability
+                            token['char'] = [np.random.choice([prev_speaker, next_speaker], p=p)]
+
+                        pronDict['you'] = token['char']
+
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
                     else:
-                        charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                        charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                        pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]] 
-                        token['char'] = list(np.random.choice(charSample, size = numChar, replace=False, p=pSample))
-                        
-                pronDict['they'] = token['char']
-                    
-                for entity in row['entities']:
-                    if entity['name'] in token['char']:
-                        entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+                # else, assume third person
+                elif pLemma.lower() in personPron3m:
+                    if pronDict.get('he'):
+                        token['char'] = pronDict.get('he')
+                    else:
+                        charSample = [x for x in charCounter.keys() if x not in ['narrator', row['speaker']]]
+                        charSum = sum([charCounter[x] for x in charSample])
+                        pSample = [float(charCounter[x])/charSum for x in charSample]
+                        print charCounter, charSample, charSum, pSample
+
+                        if absolute:
+                            token['char'] = [charSample[np.argmax(pSample)]]
+                        else:
+                            token['char'] = [np.random.choice(charSample, p=pSample)]
+
+                        pronDict['he'] = token['char']
+
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
+                    else:
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+                elif pLemma.lower() in personPron3f:
+                    if pronDict.get('she'):
+                        token['char'] = pronDict.get('she')
+                    else:
+                        charSample = [x for x in charCounter.keys() if x not in ['narrator', row['speaker']]]
+                        charSum = sum([charCounter[x] for x in charSample])
+                        pSample = [float(charCounter[x])/charSum for x in charSample]
+
+                        if absolute:
+                            token['char'] = [charSample[np.argmax(pSample)]]
+                        else:
+                            token['char'] = [np.random.choice(charSample, p=pSample)]
+                        pronDict['she'] = token['char']
+
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
+                    else:
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+
+                elif pLemma.lower() in personPron3p:                
+                    if pronDict.get('they'):
+                        token['char'] = pronDict.get('they')
+                    else:
+                        numChar = np.random.choice([2, 3, 4])
+
+                        if absolute:
+                            charSample = Counter({x:charCounter[x] for x in charCounter 
+                                                  if x not in ['narrator', row['speaker']]}).most_common(numChar)
+                            token['char'] = [x[0] for x in charSample]
+
+                        else:
+                            charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
+                            charSum = sum([charCounter[x] for x in charSample])
+                            pSample = [float(charCounter[x])/charSum for x in charSample] 
+                            token['char'] = list(np.random.choice(charSample, size = numChar, replace=False, p=pSample))
+
+                    pronDict['they'] = token['char']
+
+                    for entity in row['entities']:
+                        if entity['name'] in token['char']:
+                            entity['mentions'].append(token['content'])
+                            break
+                    else:
+                        row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
                 
 
     return row['tokens'], row['entities']
@@ -296,7 +319,7 @@ def pronEval(scripts):
             print('*'*8 + ' evaluate line {} in {} '.format(lineNum, script['name']) + '*'*8)
             print('{} pronouns resolved'.format(len(charList)))
             for j, char in enumerate(charList):
-                print('%i. %s => %s' % (j+1, char[0].encode('utf-8'), char[1].encode('utf-8')))
+                print('%i. %s => %s' % (j+1, char[0], char[1]))
                       
             collectInput = False
             
