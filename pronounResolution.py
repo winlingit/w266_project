@@ -38,11 +38,11 @@ def pronResolution_nn(charList, row):
             pLemma = token['content']
             
             # if token is "I",
-            if pLemma.lower() in personPron1:
+            if pLemma.lower() in ['i', 'me', 'my', 'mine']:
                 token['char'] = [row['speaker']]
                 
             # else, if token is "you", add previous or next speaker to dialogue
-            elif pLemma.lower() in personPron2:
+            elif pLemma.lower() in ['you', 'your', 'yours']:
                 token['char'] = [np.random.choice([row['speaker_prev'], row['speaker_next']])]
                 
             # else, add random character name to token
@@ -56,7 +56,6 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
     '''
     I => current speaker, you => previous or next speaker
     '''
-    
     personPron1 = ['i', 'me', 'my', 'mine', 'myself']
     personPron1p = ['we', 'us', 'ours', 'our', 'ourselves']
     personPron2 = ['you', 'your', 'yours', 'yourself']
@@ -108,36 +107,38 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':token['char'][0]})
                 
             #if token is "we"
-            if pLemma.lower() in personPron1P:
+            if pLemma.lower() in personPron1p:
                 if pronDict.get('we'):
                     token['char'] = pronDict['we']
 
                 else:
                     if absolute:
-                        token['char'] = list(set(charCounter.keys()))
+                        token['char'] = list(set(row['nearbyChars']))
 
                     else:
+                        
+                        numChar = np.random.choice([2, 3, 4])
                         token['char'] = [row['speaker']]
-                        nearbyCount = Counter([x for x in charCounter.keys() if x not in [row.speaker, 'narrator']])
-                        charSample = nearbyCount.keys()
+                        nearbyCount = Counter([x for x in row['nearbyChars'] if str(x) not in [row.speaker, 'narrator', 'nan']])
+                        charSample = list(nearbyCount.keys())
                         charSum = sum(nearbyCount.values())
                         pSample = [nearbyCount[x]/charSum for x in nearbyCount]
-                        randomProb = np.random.rand()
-                        for char, prob in zip(charSample, pSample):
-                            if prob > randomProb:
-                                token['char'].append(char)
+                        #print(charSample, pSample)
+                        token['char'].extend(list(np.random.choice(charSample, 
+                                                                   size=min(numChar, len(charSample)), p=pSample, replace=False)))
                                 
                     pronDict['we'] = token['char']
                 
+                matchedChar = set()
                 for entity in row['entities']:
                     if entity['name'] in token['char']:
                         entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                        matchedChar.add(entity['name'])
+                for char in set(token['char']) - matchedChar:
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':char})
 
             
             # else, if token is "you", add previous or next speaker to dialogue
@@ -180,7 +181,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':token['char'][0]})
                 
             # else, assume third person
             elif pLemma.lower() in personPron3m:
@@ -203,7 +204,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':token['char'][0]})
                     
             elif pLemma.lower() in personPron3f:
                 if pronDict.get('she'):
@@ -224,7 +225,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         entity['mentions'].append(token['content'])
                         break
                 else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':token['char'][0]})
 
             elif pLemma.lower() in personPron3p:                
                 if pronDict.get('they'):
@@ -245,12 +246,14 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         
                 pronDict['they'] = token['char']
                     
+                matchedChar = set()
                 for entity in row['entities']:
                     if entity['name'] in token['char']:
                         entity['mentions'].append(token['content'])
-                        break
-                else:
-                    row['entities'].append({'mentions':[token['char'][0]], 'type':'PERSON', 'name':token['char'][0]})
+                        matchedChar.add(entity['name'])
+                        
+                for char in set(token['char']) - matchedChar:
+                    row['entities'].append({'mentions':[token['content']], 'type':'PERSON', 'name':char})
                 
 
     return row['tokens'], row['entities']
