@@ -48,7 +48,9 @@ def pronResolution_nn(charCounter, row):
     '''
     I => current speaker, you => previous or next speaker
     '''
-    
+    personPron1 = ['i', 'me', 'my', 'mine', 'myself']
+    personPron2 = ['you', 'your', 'yours', 'yourself']
+
     for token in row['tokens']:
         
         # if token is pronoun, add character name to token
@@ -66,7 +68,8 @@ def pronResolution_nn(charCounter, row):
 
                 # else, add random character name to token
                 else:
-                    token['char'] = [np.random.choice(charCounter.keys())]
+                    charSample = charCounter.keys()
+                    token['char'] = [np.random.choice(charSample)]
 
     return row['tokens'], row['entities']
 
