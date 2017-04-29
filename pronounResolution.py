@@ -5,6 +5,15 @@ import pandas as pd
 import os
 from collections import Counter
 
+# groups of pronouns
+personPron1 = ['i', 'me', 'my', 'mine', 'myself']
+personPron1p = ['we', 'us', 'ours', 'our', 'ourselves']
+personPron2 = ['you', 'your', 'yours', 'yourself']
+personPron3m = ['he', 'his', 'him', 'himself']
+personPron3f = ['she', 'her', 'hers', 'herself']
+personPron3p = ['they', 'them', 'theirs', 'themselves']
+personPron = personPron1 + personPron1p + personPron2 + personPron3m + personPron3f + personPron3p
+
 ### Model 0: Random character
 def pronResolution_base(charList, row):
     '''
@@ -19,7 +28,7 @@ def pronResolution_base(charList, row):
     for token in row['tokens']:
         
         # if token is pronoun, add random character name to token
-        if token['pos'] == 'PRON':
+        if token['pos'] == 'PRON' and token['content'] in personPron:
             token['char'] = np.random.choice(charList)
 
     return row['tokens'], row['entities']
@@ -34,7 +43,7 @@ def pronResolution_nn(charList, row):
     for token in row['tokens']:
         
         # if token is pronoun, add character name to token
-        if token['pos'] == 'PRON':
+        if token['pos'] == 'PRON' and token['content'] in personPron:
             pLemma = token['content']
             
             # if token is "I",
@@ -56,12 +65,6 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
     '''
     I => current speaker, you => previous or next speaker
     '''
-    personPron1 = ['i', 'me', 'my', 'mine', 'myself']
-    personPron1p = ['we', 'us', 'ours', 'our', 'ourselves']
-    personPron2 = ['you', 'your', 'yours', 'yourself']
-    personPron3m = ['he', 'his', 'him', 'himself']
-    personPron3f = ['she', 'her', 'hers', 'herself']
-    personPron3p = ['they', 'them', 'theirs', 'themselves']
     
     for entity in row['entities']:
         
@@ -96,7 +99,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
         
         # if token is pronoun, add character name to token
         pLemma = token['lemma']
-        if pLemma.lower() in personPron1+personPron1p+personPron2+personPron3m+personPron3f+personPron3p:
+        if pLemma.lower() in personPron:
             # if token is "I",
             if pLemma.lower() in personPron1:
                 token['char'] = [row['speaker']]
@@ -124,7 +127,7 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         nearbyCount = Counter([x for x in row['nearbyChars'] if str(x) not in [row.speaker, 'narrator', 'nan']])
                         charSample = list(nearbyCount.keys())
                         charSum = sum(nearbyCount.values())
-                        pSample = [nearbyCount[x]/charSum for x in nearbyCount]
+                        pSample = [float(nearbyCount[x])/charSum for x in nearbyCount]
                         #print(charSample, pSample)
                         token['char'].extend(list(np.random.choice(charSample, 
                                                                    size=min(numChar, len(charSample)), p=pSample, replace=False)))
@@ -187,9 +190,9 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                 if pronDict.get('he'):
                     token['char'] = pronDict.get('he')
                 else:
-                    charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                    charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                    pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
+                    charSample = [x for x in charCounter.keys() if x not in ['narrator', row['speaker']]]
+                    charSum = sum([charCounter[x] for x in charSample])
+                    pSample = [float(charCounter[x])/charSum for x in charSample]
 
                     if absolute:
                         token['char'] = [charSample[np.argmax(pSample)]]
@@ -209,9 +212,9 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                 if pronDict.get('she'):
                     token['char'] = pronDict.get('she')
                 else:
-                    charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                    charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                    pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]]
+                    charSample = [x for x in charCounter.keys() if x not in ['narrator', row['speaker']]]
+                    charSum = sum([charCounter[x] for x in charSample])
+                    pSample = [float(charCounter[x])/charSum for x in charSample]
 
                     if absolute:
                         token['char'] = [charSample[np.argmax(pSample)]]
@@ -239,9 +242,9 @@ def pronResolution_nnMod(charCounter, row, absolute=False):
                         token['char'] = [x[0] for x in charSample]
                     
                     else:
-                        charSample = [x for x in charCounter if x not in ['narrator', row['speaker']]]
-                        charSum = sum([charCounter[x] for x in charCounter if x not in ['narrator', row['speaker']]])
-                        pSample = [charCounter[x]/charSum for x in charCounter if x not in ['narrator', row['speaker']]] 
+                        charSample = [x for x in charCounter.keys() if x not in ['narrator', row['speaker']]]
+                        charSum = sum([charCounter[x] for x in charSample])
+                        pSample = [float(charCounter[x])/charSum for x in charSample] 
                         token['char'] = list(np.random.choice(charSample, size = numChar, replace=False, p=pSample))
                         
                 pronDict['they'] = token['char']
