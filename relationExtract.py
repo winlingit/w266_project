@@ -5,8 +5,15 @@ import pandas as pd
 import os
 import json
 
+personPron1 = ['i', 'me', 'my', 'mine', 'myself']
+personPron1p = ['we', 'us', 'ours', 'our', 'ourselves']
+personPron2 = ['you', 'your', 'yours', 'yourself']
+personPron3m = ['he', 'his', 'him', 'himself']
+personPron3f = ['she', 'her', 'hers', 'herself']
+personPron3p = ['they', 'them', 'theirs', 'themselves']
+
 def getRelations():
-    return {0:'others', 1:'negative mentioning', 2:'positive mentioning', 3:'group mentioning', 4: 'mixed mentioning', 5: 'place mentioning'}
+    return {0:'others', 1:'negative mentioning', 2:'positive mentioning', 3:'identity mentioning', 4: 'mixed mentioning', 5: 'place mentioning', 6:'same team mentioning', 7:'opposing team mentioning'}
 
 def simpleRE(rows):
     '''
@@ -31,37 +38,61 @@ def simpleRE(rows):
     else:
         return None
     
-def extract_relation_categories(rows):
+def extract_relation_categories(cList, rows):
     relation = []
-    #team_relations = extract_mention_team(rows)
-    places_mentioned = extract_place_mentioned(rows)
-    mention_sentiment_relations = extract_mention_sentiment(rows)
-    #if team_relations:
-        #relation.extend(team_relations)
-    if places_mentioned:
-        relation.extend(places_mentioned)
-    if mention_sentiment_relations:
-        relation.extend(mention_sentiment_relations)
+    
+    relation += extract_mention_team(rows)
+    relation += extract_place_mentioned(rows)
+    relation += extract_mention_sentiment(cList, rows)
+    relation += extract_identity(cList, rows)
     
     if relation:
         return relation
     else:
         return None    
 
-def extract_mention_team(rows):
+def extract_identity(cList, rows):
     relation = []
-    num_other_persons_mentioned = len([e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker])
+    for entity in rows.entities:
+        if entity['name'] in cList:
+            for mention in entity['mentions']:
+                if mention.lower() not in personPron1 + personPron1p + personPron2 + \
+                personPron3m + personPron3f + personPron3p and mention.lower() not in entity['name'].lower():
+                    relation.append({'relation':'character ' + entity['name'] + ' has identity of ' + mention, 'ent1':entity['name'],
+                                     'ent2':entity['name'], 'class': 3, 'line':rows.name, 'men2':entity['mentions']})
+    return relation
     
-    if num_other_persons_mentioned > 2:
-        persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] not in rows.speaker]
-        for e in persons_list:
-            relation.append({'relation':rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2':e['name'], 'class':3, 'line':rows.name})
-        return relation
-    else:
-        return None
+def extract_mention_team(rows):
+    if rows.speaker == 'narrator':
+        return []
+ 
+    relation = []
+    for token in rows.tokens:
+        if token['lemma'].lower() in personPron1p:
+            for char in token['char']:
+                if char != rows.speaker:
+                    relation.append({'relation':'belong to same team', 'ent1':rows.speaker, 'ent2':char, 'class':6, 'line':rows.name,
+                                     'men2':[token['content']]})
+
+        if token['lemma'].lower() in personPron3p:
+            if rows.sentiment['score'] < - 0.4:
+                for char in token['char']:
+                    relation.append({'relation':'belong to opposing team', 'ent1':rows.speaker, 'ent2':char, 'class':7, 'line':rows.name,
+                                     'men2':[token['content']]})
+
+            print(rows.name)
+            print(token)
+            numChar = len(token['char'])
+            for i in range(numChar):
+                for j in range(i+1, numChar):
+                    relation.append({'relation':'belong to same team', 'ent1':token['char'][i], 'ent2':token['char'][j], 
+                                     'class':6, 'line':rows.name, 'men2':[token['content']]})
+                
+    return relation
         
 def extract_place_mentioned(rows):
+    if rows.speaker == 'narrator':
+        return []
     relation = []
     places_list = [e for e in rows.entities if e['type'] == 'LOCATION']
     
@@ -81,7 +112,7 @@ def extract_place_mentioned(rows):
                 rel_index = token['index']
                 
             if 'OBJ' in token['label'] and token['index'] == rel_index and token['content'] in p['name'].split(' '):
-                subj = rows.tokens[nsubj].get('char', rows.tokens[nsubj]['content'])
+                subj = rows.tokens[nsubj].get('char', [rows.tokens[nsubj]['content']])[0]
                 obj = p['name']
                 
                 for j in range(rel_index, i):
@@ -91,23 +122,20 @@ def extract_place_mentioned(rows):
                 
             if 'OBJ' in token['label'] and token['index'] == rel_index and place_is_subj:
                 subj = p['name']
-                obj = rows.tokens[i].get('char', rows.tokens[i]['content'])
+                obj = rows.tokens[i].get('char', [rows.tokens[i]['content']])[0]
                 
                 for j in range(rel_index, i):
                     rel_phrase += ' ' + rows.tokens[j]['content']
                 relation.append({'relation': rel_phrase, 
                                  'ent1':subj, 'ent2':obj, 'class':5, 'line':rows.name})
         
-    if relation:
-        return relation
-    else:
-        return None
+    return relation
     
-
-def extract_mention_sentiment(rows):
-    
+def extract_mention_sentiment(cList, rows):
+    if rows.speaker == 'narrator':
+        return []
     relation = []
-    persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] != rows.speaker]
+    persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] != rows.speaker and e['name'] in cList]
     #print(persons_list)
     sentiment_score = rows.sentiment['score']
     sentiment_mag = rows.sentiment['magnitude']
@@ -116,20 +144,16 @@ def extract_mention_sentiment(rows):
     
         if sentiment_score > 0.4:
             relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 2, 'line':rows.name})
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 2, 'line':rows.name, 'men2':e['mentions']})
     
         elif sentiment_score < -0.4:
             relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 1, 'line':rows.name})
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 1, 'line':rows.name, 'men2':e['mentions']})
                          
         elif sentiment_mag > 1.0:
             relation.append({'relation': rows.dialogue, 
-                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 4, 'line':rows.name})
-
-    if relation:
-        return relation
-    else:
-        return None
+                             'ent1':rows.speaker, 'ent2': e['name'], 'class': 4, 'line':rows.name, 'men2':e['mentions']})
+    return relation
 
 def REEval(dfList, numExamples=50):
     '''
@@ -166,7 +190,7 @@ def REEval(dfList, numExamples=50):
             print('*'*8 + ' test model {}: line {} '.format(m+1, lineNum) + '*'*8)
             print('{} relations identified'.format(len(df.loc[lineNum]['relations'])))
             for relation in df.loc[lineNum]['relations']:
-                print('entities: {} => {}'.format(relation['ent1'], relation['ent2']))
+                print('entities: {} => {}-{}'.format(relation['ent1'], relation['ent2'], relation.get('men2')))
                 print('relation: {}'.format(relation['relation']))
                 print('category: {}. {}'.format(relation['class'], getRelations()[relation['class']]))
                       
