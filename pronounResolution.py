@@ -28,7 +28,7 @@ def pronResolution_base(charList, row):
     for token in row['tokens']:
         
         # if token is pronoun, add random character name to token
-        if token['pos'] == 'PRON' and token['content'] in personPron:
+        if token['pos'] == 'PRON' and token['content'].lower() in personPron:
             token['char'] = np.random.choice(charList)
 
     return row['tokens'], row['entities']
@@ -43,7 +43,7 @@ def pronResolution_nn(charList, row):
     for token in row['tokens']:
         
         # if token is pronoun, add character name to token
-        if token['pos'] == 'PRON' and token['content'] in personPron:
+        if token['pos'] == 'PRON' and token['content'].lower() in personPron:
             pLemma = token['content']
             
             # if token is "I",
