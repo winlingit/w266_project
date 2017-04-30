@@ -41,7 +41,7 @@ def simpleRE(rows):
 def extract_relation_categories(cList, rows):
     relation = []
     
-    relation += extract_mention_team(rows)
+    #relation += extract_mention_team(rows)
     relation += extract_place_mentioned(rows)
     relation += extract_mention_sentiment(cList, rows)
     relation += extract_identity(cList, rows)
@@ -80,8 +80,6 @@ def extract_mention_team(rows):
                     relation.append({'relation':'belong to opposing team', 'ent1':rows.speaker, 'ent2':char, 'class':7, 'line':rows.name,
                                      'men2':[token['content']]})
 
-            print(rows.name)
-            print(token)
             numChar = len(token['char'])
             for i in range(numChar):
                 for j in range(i+1, numChar):
@@ -136,7 +134,6 @@ def extract_mention_sentiment(cList, rows):
         return []
     relation = []
     persons_list = [e for e in rows.entities if e['type'] == 'PERSON' and e['name'] != rows.speaker and e['name'] in cList]
-    #print(persons_list)
     sentiment_score = rows.sentiment['score']
     sentiment_mag = rows.sentiment['magnitude']
     
